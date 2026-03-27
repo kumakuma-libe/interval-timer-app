@@ -9,7 +9,7 @@ interface Props {
 
 export function PresetSelector({ presets, activeIndex, onChange }: Props) {
   return (
-    <div className="absolute top-5 left-1/2 -translate-x-1/2 z-10">
+    <div className="absolute left-1/2 -translate-x-1/2 z-10" style={{ top: 'max(env(safe-area-inset-top, 20px) + 8px, 60px)' }}>
       <div className="relative">
         <select
           value={activeIndex}
