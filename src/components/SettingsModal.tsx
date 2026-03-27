@@ -9,14 +9,8 @@ interface Props {
   onClose: () => void
 }
 
-// iPhoneで数字入力しやすくするための共通inputスタイルとハンドラ
 const numInputClass =
   'w-18 bg-gray-700 text-white text-center rounded-xl px-2 py-3 text-lg font-bold appearance-none'
-
-function handleFocus(e: FocusEvent<HTMLInputElement>) {
-  // タップ時に全選択 → そのまま上書き入力できる
-  e.target.select()
-}
 
 function TimeInput({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   const min = Math.floor(value / 60)
@@ -25,15 +19,23 @@ function TimeInput({ label, value, onChange }: { label: string; value: number; o
   const [secText, setSecText] = useState(String(sec))
   const prevValue = useRef(value)
 
-  // 親の値が変わったらテキストも更新
   if (value !== prevValue.current) {
     prevValue.current = value
     setMinText(String(Math.floor(value / 60)))
     setSecText(String(value % 60))
   }
 
+  function handleMinFocus() {
+    // フォーカス時にクリア → そのまま数字を入力できる
+    setMinText('')
+  }
+
+  function handleSecFocus() {
+    setSecText('')
+  }
+
   function handleMinChange(e: ChangeEvent<HTMLInputElement>) {
-    const raw = e.target.value
+    const raw = e.target.value.replace(/[^0-9]/g, '')
     setMinText(raw)
     const n = raw === '' ? 0 : parseInt(raw, 10)
     if (!isNaN(n)) {
@@ -44,7 +46,7 @@ function TimeInput({ label, value, onChange }: { label: string; value: number; o
   }
 
   function handleSecChange(e: ChangeEvent<HTMLInputElement>) {
-    const raw = e.target.value
+    const raw = e.target.value.replace(/[^0-9]/g, '')
     setSecText(raw)
     const n = raw === '' ? 0 : parseInt(raw, 10)
     if (!isNaN(n)) {
@@ -55,7 +57,6 @@ function TimeInput({ label, value, onChange }: { label: string; value: number; o
   }
 
   function handleMinBlur() {
-    // フォーカスが外れたら正規化
     setMinText(String(Math.floor(value / 60)))
   }
 
@@ -73,8 +74,9 @@ function TimeInput({ label, value, onChange }: { label: string; value: number; o
           pattern="[0-9]*"
           value={minText}
           onChange={handleMinChange}
-          onFocus={handleFocus}
+          onFocus={handleMinFocus}
           onBlur={handleMinBlur}
+          placeholder="0"
           className={numInputClass}
         />
         <span className="text-gray-400 text-base font-bold">分</span>
@@ -84,8 +86,9 @@ function TimeInput({ label, value, onChange }: { label: string; value: number; o
           pattern="[0-9]*"
           value={secText}
           onChange={handleSecChange}
-          onFocus={handleFocus}
+          onFocus={handleSecFocus}
           onBlur={handleSecBlur}
+          placeholder="0"
           className={numInputClass}
         />
         <span className="text-gray-400 text-base font-bold">秒</span>
@@ -94,7 +97,7 @@ function TimeInput({ label, value, onChange }: { label: string; value: number; o
   )
 }
 
-function NumberInput({ label, value, onChange, min = 0 }: { label: string; value: number; onChange: (v: number) => void; min?: number }) {
+function NumberInput({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   const [text, setText] = useState(String(value))
   const prevValue = useRef(value)
 
@@ -103,12 +106,16 @@ function NumberInput({ label, value, onChange, min = 0 }: { label: string; value
     setText(String(value))
   }
 
+  function handleFocus() {
+    setText('')
+  }
+
   function handleChange(e: ChangeEvent<HTMLInputElement>) {
-    const raw = e.target.value
+    const raw = e.target.value.replace(/[^0-9]/g, '')
     setText(raw)
-    const n = raw === '' ? min : parseInt(raw, 10)
+    const n = raw === '' ? 0 : parseInt(raw, 10)
     if (!isNaN(n)) {
-      const clamped = Math.max(min, Math.min(99, n))
+      const clamped = Math.max(0, Math.min(99, n))
       prevValue.current = clamped
       onChange(clamped)
     }
@@ -130,6 +137,7 @@ function NumberInput({ label, value, onChange, min = 0 }: { label: string; value
           onChange={handleChange}
           onFocus={handleFocus}
           onBlur={handleBlur}
+          placeholder="0"
           className={numInputClass}
         />
         <span className="text-gray-400 text-base font-bold">回</span>
@@ -215,7 +223,6 @@ export function SettingsModal({ presets, activeIndex, onSave, onClose }: Props) 
               type="text"
               value={current.name}
               onChange={e => updateCurrent({ name: e.target.value })}
-              onFocus={handleFocus}
               className="w-full bg-gray-700 text-white rounded-xl px-4 py-3 text-lg font-bold mt-1"
             />
           </div>
