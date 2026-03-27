@@ -1,4 +1,5 @@
 // iPhoneでも確実に音が鳴るよう、AudioContextを使い回す
+// サイレントモードでもWeb Audio APIは音が鳴る（iOS Safari仕様）
 let audioCtx: AudioContext | null = null
 
 function getAudioContext(): AudioContext {
@@ -9,6 +10,7 @@ function getAudioContext(): AudioContext {
 }
 
 // iOSではユーザー操作時にAudioContextをresumeする必要がある
+// これによりサイレントモードでもWeb Audio APIの音が有効になる
 export function unlockAudio() {
   try {
     const ctx = getAudioContext()
@@ -16,30 +18,37 @@ export function unlockAudio() {
       ctx.resume()
     }
     // 無音を再生してiOSのオーディオロックを解除
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
-    gain.gain.value = 0
-    osc.connect(gain)
-    gain.connect(ctx.destination)
-    osc.start()
-    osc.stop(ctx.currentTime + 0.01)
+    const buffer = ctx.createBuffer(1, 1, 22050)
+    const source = ctx.createBufferSource()
+    source.buffer = buffer
+    source.connect(ctx.destination)
+    source.start(0)
   } catch {}
 }
 
-function playTone(frequency: number, duration: number, volume = 0.4) {
+function playTone(frequency: number, duration: number, volume = 1.0) {
   try {
     const ctx = getAudioContext()
     if (ctx.state === 'suspended') ctx.resume()
 
     const osc = ctx.createOscillator()
     const gain = ctx.createGain()
+
+    // コンプレッサーで音圧を上げる
+    const compressor = ctx.createDynamicsCompressor()
+    compressor.threshold.value = -10
+    compressor.knee.value = 5
+    compressor.ratio.value = 4
+    compressor.attack.value = 0.003
+    compressor.release.value = 0.05
+
     osc.connect(gain)
-    gain.connect(ctx.destination)
+    gain.connect(compressor)
+    compressor.connect(ctx.destination)
 
     osc.frequency.value = frequency
-    osc.type = 'sine'
+    osc.type = 'square' // squareの方がsineより音が大きく聞こえる
     gain.gain.setValueAtTime(volume, ctx.currentTime)
-    // フェードアウトで自然な音に
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration / 1000)
 
     osc.start(ctx.currentTime)
@@ -47,12 +56,12 @@ function playTone(frequency: number, duration: number, volume = 0.4) {
   } catch {}
 }
 
-// カウントダウン 3, 2, 1 のビープ音（短い高音）
+// カウントダウン 3, 2, 1 のビープ音（大きく短い高音）
 export function playCountdownBeep() {
-  playTone(880, 150, 0.5)
+  playTone(880, 200, 1.0)
 }
 
-// フェーズ開始音（ピロリン♪ 2音）
+// フェーズ開始音（ピロリン♪ 2音 大きめ）
 export function playStartBeep() {
   try {
     const ctx = getAudioContext()
@@ -60,33 +69,41 @@ export function playStartBeep() {
 
     const now = ctx.currentTime
 
+    const compressor = ctx.createDynamicsCompressor()
+    compressor.threshold.value = -10
+    compressor.knee.value = 5
+    compressor.ratio.value = 4
+    compressor.attack.value = 0.003
+    compressor.release.value = 0.05
+    compressor.connect(ctx.destination)
+
     // 1音目
     const osc1 = ctx.createOscillator()
     const gain1 = ctx.createGain()
     osc1.connect(gain1)
-    gain1.connect(ctx.destination)
+    gain1.connect(compressor)
     osc1.frequency.value = 1047 // C6
-    osc1.type = 'sine'
-    gain1.gain.setValueAtTime(0.5, now)
-    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.15)
+    osc1.type = 'square'
+    gain1.gain.setValueAtTime(1.0, now)
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.2)
     osc1.start(now)
-    osc1.stop(now + 0.15)
+    osc1.stop(now + 0.2)
 
     // 2音目（少し高い音）
     const osc2 = ctx.createOscillator()
     const gain2 = ctx.createGain()
     osc2.connect(gain2)
-    gain2.connect(ctx.destination)
+    gain2.connect(compressor)
     osc2.frequency.value = 1319 // E6
-    osc2.type = 'sine'
-    gain2.gain.setValueAtTime(0.5, now + 0.15)
-    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.35)
-    osc2.start(now + 0.15)
-    osc2.stop(now + 0.35)
+    osc2.type = 'square'
+    gain2.gain.setValueAtTime(1.0, now + 0.2)
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.45)
+    osc2.start(now + 0.2)
+    osc2.stop(now + 0.45)
   } catch {}
 }
 
-// 完了音（ピロリロリン♪ 3音）
+// 完了音（ピロリロリン♪ 3音 大きめ）
 export function playFinishBeep() {
   try {
     const ctx = getAudioContext()
@@ -95,18 +112,26 @@ export function playFinishBeep() {
     const now = ctx.currentTime
     const notes = [1047, 1319, 1568] // C6, E6, G6
 
+    const compressor = ctx.createDynamicsCompressor()
+    compressor.threshold.value = -10
+    compressor.knee.value = 5
+    compressor.ratio.value = 4
+    compressor.attack.value = 0.003
+    compressor.release.value = 0.05
+    compressor.connect(ctx.destination)
+
     notes.forEach((freq, i) => {
       const osc = ctx.createOscillator()
       const gain = ctx.createGain()
       osc.connect(gain)
-      gain.connect(ctx.destination)
+      gain.connect(compressor)
       osc.frequency.value = freq
-      osc.type = 'sine'
-      const start = now + i * 0.15
-      gain.gain.setValueAtTime(0.5, start)
-      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.3)
+      osc.type = 'square'
+      const start = now + i * 0.2
+      gain.gain.setValueAtTime(1.0, start)
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.35)
       osc.start(start)
-      osc.stop(start + 0.3)
+      osc.stop(start + 0.35)
     })
   } catch {}
 }
