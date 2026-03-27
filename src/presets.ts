@@ -2,12 +2,12 @@ import type { Preset } from './types'
 
 export const DEFAULT_PRESETS: Preset[] = [
   {
-    name: 'プリセット 1',
-    prepTime: 0,
-    workTime: 0,
-    restTime: 0,
-    cycles: 0,
-    sets: 0,
+    name: '筋トレ基本',
+    prepTime: 10,
+    workTime: 30,
+    restTime: 15,
+    cycles: 7,
+    sets: 1,
     setRestTime: 0,
   },
   {
@@ -33,7 +33,32 @@ export const DEFAULT_PRESETS: Preset[] = [
 const STORAGE_KEY = 'interval-timer-presets'
 const ACTIVE_KEY = 'interval-timer-active-preset'
 
+// URLからプリセットを復元する
+function loadPresetsFromURL(): Preset[] | null {
+  try {
+    const hash = window.location.hash
+    if (hash && hash.startsWith('#presets=')) {
+      const encoded = hash.slice('#presets='.length)
+      const json = decodeURIComponent(atob(encoded))
+      const parsed = JSON.parse(json)
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        // URLから読み込んだらlocalStorageにも保存
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed))
+        // ハッシュをクリア（URLを綺麗に）
+        history.replaceState(null, '', window.location.pathname + window.location.search)
+        return parsed
+      }
+    }
+  } catch {}
+  return null
+}
+
 export function loadPresets(): Preset[] {
+  // 1. URLから復元を試みる
+  const fromURL = loadPresetsFromURL()
+  if (fromURL) return fromURL
+
+  // 2. localStorageから読み込む
   try {
     const data = localStorage.getItem(STORAGE_KEY)
     if (data) {
@@ -41,6 +66,8 @@ export function loadPresets(): Preset[] {
       if (Array.isArray(parsed) && parsed.length > 0) return parsed
     }
   } catch {}
+
+  // 3. デフォルト値を返す
   return DEFAULT_PRESETS
 }
 
@@ -58,4 +85,12 @@ export function loadActiveIndex(): number {
 
 export function saveActiveIndex(index: number) {
   localStorage.setItem(ACTIVE_KEY, String(index))
+}
+
+// 現在の設定をURLとして生成する
+export function generateShareURL(presets: Preset[]): string {
+  const json = JSON.stringify(presets)
+  const encoded = btoa(encodeURIComponent(json))
+  const base = window.location.origin + window.location.pathname
+  return `${base}#presets=${encoded}`
 }

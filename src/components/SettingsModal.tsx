@@ -1,6 +1,7 @@
-import { useState, useRef, type FocusEvent, type ChangeEvent } from 'react'
+import { useState, useRef, type ChangeEvent } from 'react'
 import type { Preset } from '../types'
-import { X, Plus, Trash2 } from 'lucide-react'
+import { X, Plus, Trash2, Share2, RotateCcw } from 'lucide-react'
+import { generateShareURL, DEFAULT_PRESETS } from '../presets'
 
 interface Props {
   presets: Preset[]
@@ -177,8 +178,36 @@ export function SettingsModal({ presets, activeIndex, onSave, onClose }: Props) 
     setEditIndex(Math.min(editIndex, newPresets.length - 1))
   }
 
+  const [shareMsg, setShareMsg] = useState('')
+
   function handleSave() {
     onSave(editPresets, editIndex)
+  }
+
+  async function handleShare() {
+    const url = generateShareURL(editPresets)
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: '筋トレタイマー設定', url })
+        setShareMsg('共有しました！')
+      } else {
+        await navigator.clipboard.writeText(url)
+        setShareMsg('URLをコピーしました！')
+      }
+    } catch {
+      try {
+        await navigator.clipboard.writeText(url)
+        setShareMsg('URLをコピーしました！')
+      } catch {
+        setShareMsg('共有に失敗しました')
+      }
+    }
+    setTimeout(() => setShareMsg(''), 2500)
+  }
+
+  function handleReset() {
+    setEditPresets(JSON.parse(JSON.stringify(DEFAULT_PRESETS)))
+    setEditIndex(0)
   }
 
   return (
@@ -239,19 +268,38 @@ export function SettingsModal({ presets, activeIndex, onSave, onClose }: Props) 
         </div>
 
         {/* Footer */}
-        <div className="flex gap-3 p-5 border-t border-gray-700 bg-gray-800 shrink-0">
-          <button
-            onClick={onClose}
-            className="flex-1 bg-gray-700 hover:bg-gray-600 active:scale-95 text-white py-3.5 rounded-2xl text-lg font-bold transition-all"
-          >
-            キャンセル
-          </button>
-          <button
-            onClick={handleSave}
-            className="flex-1 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white py-3.5 rounded-2xl text-lg font-bold transition-all"
-          >
-            💾 保存
-          </button>
+        <div className="p-5 border-t border-gray-700 bg-gray-800 shrink-0 space-y-3">
+          {shareMsg && (
+            <p className="text-center text-green-400 font-bold text-sm">{shareMsg}</p>
+          )}
+          <div className="flex gap-2">
+            <button
+              onClick={handleShare}
+              className="flex items-center justify-center bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white py-2.5 px-3 rounded-2xl transition-all"
+              title="設定をURL共有"
+            >
+              <Share2 size={22} />
+            </button>
+            <button
+              onClick={handleReset}
+              className="flex items-center justify-center bg-gray-600 hover:bg-gray-500 active:scale-95 text-white py-2.5 px-3 rounded-2xl transition-all"
+              title="初期設定に戻す"
+            >
+              <RotateCcw size={22} />
+            </button>
+            <button
+              onClick={onClose}
+              className="flex-1 bg-gray-700 hover:bg-gray-600 active:scale-95 text-white py-2.5 rounded-2xl text-base font-bold transition-all whitespace-nowrap"
+            >
+              キャンセル
+            </button>
+            <button
+              onClick={handleSave}
+              className="flex-1 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white py-2.5 rounded-2xl text-base font-bold transition-all whitespace-nowrap"
+            >
+              💾 保存
+            </button>
+          </div>
         </div>
       </div>
     </div>
