@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import type { Preset } from './types'
 import { loadPresets, savePresets, loadActiveIndex, saveActiveIndex } from './presets'
 import { useTimer } from './hooks/useTimer'
+import { useWakeLock } from './hooks/useWakeLock'
 import { TimerDisplay } from './components/TimerDisplay'
 import { PresetSelector } from './components/PresetSelector'
 import { SettingsModal } from './components/SettingsModal'
@@ -22,6 +23,9 @@ function App() {
     toggle,
     reset,
   } = useTimer(activePreset)
+
+  // タイマー実行中は画面を消さない
+  useWakeLock(timerState === 'running')
 
   const handlePresetChange = useCallback((index: number) => {
     setActiveIndex(index)
