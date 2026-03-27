@@ -1,28 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import type { Preset, TimerState, Phase } from '../types'
-
-function playBeep(frequency: number, duration: number) {
-  try {
-    const ctx = new AudioContext()
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
-    osc.connect(gain)
-    gain.connect(ctx.destination)
-    osc.frequency.value = frequency
-    gain.gain.value = 0.3
-    osc.start()
-    osc.stop(ctx.currentTime + duration / 1000)
-    osc.onended = () => ctx.close()
-  } catch {}
-}
-
-function playCountdownBeep() {
-  playBeep(880, 100)
-}
-
-function playPhaseChangeBeep() {
-  playBeep(1200, 200)
-}
+import { playCountdownBeep, playStartBeep, playFinishBeep, unlockAudio } from './useAudio'
 
 export function useTimer(preset: Preset) {
   const [timerState, setTimerState] = useState<TimerState>('idle')
@@ -64,7 +42,7 @@ export function useTimer(preset: Preset) {
     const p = s.preset
 
     if (s.currentPhase === 'prep') {
-      playPhaseChangeBeep()
+      playStartBeep()
       setCurrentPhase('work')
       setTimeLeft(p.workTime)
       return
@@ -73,7 +51,7 @@ export function useTimer(preset: Preset) {
     if (s.currentPhase === 'work') {
       // Check if this is the last cycle of the last set
       if (s.currentCycle >= p.cycles && s.currentSet >= p.sets) {
-        playPhaseChangeBeep()
+        playFinishBeep()
         setCurrentPhase('finished')
         setTimerState('idle')
         clearTimer()
@@ -82,7 +60,7 @@ export function useTimer(preset: Preset) {
 
       // If not last cycle in this set, go to rest
       if (s.currentCycle < p.cycles) {
-        playPhaseChangeBeep()
+        playStartBeep()
         setCurrentPhase('rest')
         setTimeLeft(p.restTime)
         return
@@ -91,12 +69,12 @@ export function useTimer(preset: Preset) {
       // Last cycle of current set but not last set -> setRest
       if (s.currentSet < p.sets) {
         if (p.setRestTime > 0) {
-          playPhaseChangeBeep()
+          playStartBeep()
           setCurrentPhase('setRest')
           setTimeLeft(p.setRestTime)
         } else {
           // No set rest, go directly to next set
-          playPhaseChangeBeep()
+          playStartBeep()
           setCurrentPhase('work')
           setTimeLeft(p.workTime)
           setCurrentCycle(1)
@@ -107,7 +85,7 @@ export function useTimer(preset: Preset) {
     }
 
     if (s.currentPhase === 'rest') {
-      playPhaseChangeBeep()
+      playStartBeep()
       setCurrentPhase('work')
       setTimeLeft(p.workTime)
       setCurrentCycle(s.currentCycle + 1)
@@ -115,7 +93,7 @@ export function useTimer(preset: Preset) {
     }
 
     if (s.currentPhase === 'setRest') {
-      playPhaseChangeBeep()
+      playStartBeep()
       setCurrentPhase('work')
       setTimeLeft(p.workTime)
       setCurrentCycle(1)
@@ -127,6 +105,7 @@ export function useTimer(preset: Preset) {
   const tick = useCallback(() => {
     setTimeLeft(prev => {
       const next = prev - 1
+      // 残り3, 2, 1秒でカウントダウン音
       if (next <= 3 && next > 0) {
         playCountdownBeep()
       }
@@ -139,9 +118,11 @@ export function useTimer(preset: Preset) {
   }, [advancePhase])
 
   const start = useCallback(() => {
+    // iOSのオーディオロック解除（ユーザー操作時に呼ぶ必要あり）
+    unlockAudio()
+
     if (currentPhase === 'finished') {
       reset()
-      // Start after reset via setTimeout
       setTimeout(() => {
         setTimerState('running')
         intervalRef.current = window.setInterval(() => {
