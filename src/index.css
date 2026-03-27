@@ -4,3 +4,22 @@
   --font-sans: 'M PLUS Rounded 1c', sans-serif;
   --font-display: 'Nunito', 'M PLUS Rounded 1c', sans-serif;
 }
+
+/* iPhone Safe Area対応 */
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* number inputのスピナー非表示（iPhone向け） */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* inputのズーム防止（iOS 16px未満でズームされる対策） */
+input[type="text"],
+input[type="number"],
+select {
+  font-size: 16px !important;
+}
